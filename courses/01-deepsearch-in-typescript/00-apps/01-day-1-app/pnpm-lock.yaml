@@ -8,12 +8,18 @@ dependencies:
   '@ai-sdk/openai':
     specifier: ^3.0.7
     version: 3.0.7(zod@3.25.76)
+  '@ai-sdk/react':
+    specifier: ^3.0.29
+    version: 3.0.29(react@18.3.1)(zod@3.25.76)
   '@auth/drizzle-adapter':
     specifier: ^1.7.2
     version: 1.11.1
   '@t3-oss/env-nextjs':
     specifier: ^0.10.1
     version: 0.10.1(typescript@5.9.3)(zod@3.25.76)
+  ai:
+    specifier: ^6.0.27
+    version: 6.0.27(zod@3.25.76)
   drizzle-orm:
     specifier: ^0.33.0
     version: 0.33.0(@types/react@18.3.27)(postgres@3.4.8)(react@18.3.1)
@@ -133,6 +139,18 @@ devDependencies:
 
 packages:
 
+  /@ai-sdk/gateway@3.0.11(zod@3.25.76):
+    resolution: {integrity: sha512-gLrgNXA95wdo/zAlA0miX/SJEYKSYCHg+e0Y/uQeABLScZAMjPw3jWaeANta/Db1T4xfi8cBvY3nnV8Pa27z+w==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+    dependencies:
+      '@ai-sdk/provider': 3.0.2
+      '@ai-sdk/provider-utils': 4.0.4(zod@3.25.76)
+      '@vercel/oidc': 3.1.0
+      zod: 3.25.76
+    dev: false
+
   /@ai-sdk/openai@3.0.7(zod@3.25.76):
     resolution: {integrity: sha512-CBoYn1U59Lop8yBL9KuVjHCKc/B06q9Qo0SasRwHoyMEq+X4I8LQZu3a8Ck1jwwcZTTxfyiExB70LtIRSynBDA==}
     engines: {node: '>=18'}
@@ -161,6 +179,21 @@ packages:
     engines: {node: '>=18'}
     dependencies:
       json-schema: 0.4.0
+    dev: false
+
+  /@ai-sdk/react@3.0.29(react@18.3.1)(zod@3.25.76):
+    resolution: {integrity: sha512-e17Id+43xCjHApsjane3dVl5xuUdP9lXgZMtNcgMlg3NHhv6UYpRGuH4+d/5W8+VHhhpNfTZEf7J5DkKehGgJQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      react: ^18 || ~19.0.1 || ~19.1.2 || ^19.2.1
+    dependencies:
+      '@ai-sdk/provider-utils': 4.0.4(zod@3.25.76)
+      ai: 6.0.27(zod@3.25.76)
+      react: 18.3.1
+      swr: 2.3.8(react@18.3.1)
+      throttleit: 2.1.0
+    transitivePeerDependencies:
+      - zod
     dev: false
 
   /@alloc/quick-lru@5.2.0:
@@ -1464,6 +1497,11 @@ packages:
     engines: {node: '>=12.4.0'}
     dev: true
 
+  /@opentelemetry/api@1.9.0:
+    resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
+    engines: {node: '>=8.0.0'}
+    dev: false
+
   /@panva/hkdf@1.2.1:
     resolution: {integrity: sha512-6oclG6Y3PiDFcoyk8srjLfVKyMfVCKJ27JwNPViuXziFpmdz+MZnZN/aKY0JGXgYuO/VghU0jcOAZgWXZ1Dmrw==}
     dev: false
@@ -2159,6 +2197,11 @@ packages:
     dev: true
     optional: true
 
+  /@vercel/oidc@3.1.0:
+    resolution: {integrity: sha512-Fw28YZpRnA3cAHHDlkt7xQHiJ0fcL+NRcIqsocZQUSmbzeIKRpwttJjik5ZGanXP+vlA4SbTg+AbA3bP363l+w==}
+    engines: {node: '>= 20'}
+    dev: false
+
   /@vitest/expect@3.2.4:
     resolution: {integrity: sha512-Io0yyORnB6sikFlt8QW5K7slY4OjqNX9jmJQ02QDda8lyM6B5oNgVWoSoKPac8/kgnCUzuHQKrSLtu/uOqqrig==}
     dependencies:
@@ -2274,6 +2317,19 @@ packages:
     dependencies:
       humanize-ms: 1.2.1
     dev: true
+
+  /ai@6.0.27(zod@3.25.76):
+    resolution: {integrity: sha512-a4ToMt5+4xOzHuYdoTy2GQXuNa2/Tpuhxfs5QESHtEV/Vf2HAzSwmTwikrIs8CDKPuMWV1I9YqAvaN5xexMCiQ==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+    dependencies:
+      '@ai-sdk/gateway': 3.0.11(zod@3.25.76)
+      '@ai-sdk/provider': 3.0.2
+      '@ai-sdk/provider-utils': 4.0.4(zod@3.25.76)
+      '@opentelemetry/api': 1.9.0
+      zod: 3.25.76
+    dev: false
 
   /ajv-formats@3.0.1(ajv@8.17.1):
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
@@ -6533,6 +6589,16 @@ packages:
     engines: {node: '>= 0.4'}
     dev: true
 
+  /swr@2.3.8(react@18.3.1):
+    resolution: {integrity: sha512-gaCPRVoMq8WGDcWj9p4YWzCMPHzE0WNl6W8ADIx9c3JBEIdMkJGMzW+uzXvxHMltwcYACr9jP+32H8/hgwMR7w==}
+    peerDependencies:
+      react: ^16.11.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    dependencies:
+      dequal: 2.0.3
+      react: 18.3.1
+      use-sync-external-store: 1.6.0(react@18.3.1)
+    dev: false
+
   /table@6.9.0:
     resolution: {integrity: sha512-9kY+CygyYM6j02t5YFHbNz2FN5QmYGv9zAjVp4lCDjlCw7amdckXlEt/bjMhUIfj4ThGRE4gCUH5+yGnNuPo5A==}
     engines: {node: '>=10.0.0'}
@@ -6627,6 +6693,11 @@ packages:
     dependencies:
       real-require: 0.2.0
     dev: true
+
+  /throttleit@2.1.0:
+    resolution: {integrity: sha512-nt6AMGKW1p/70DF/hGBdJB57B8Tspmbp5gfJ8ilhLnt7kkr2ye7hzD6NVG8GGErk2HWF34igrL2CXmNIkzKqKw==}
+    engines: {node: '>=18'}
+    dev: false
 
   /tinybench@2.9.0:
     resolution: {integrity: sha512-0+DUvqWMValLmha6lr4kD8iAMK1HzV0/aKnCtWb9v9641TnP/MFb7Pc2bxoxQjTXAErryXVgUOfv2YqNllqGeg==}
@@ -6908,6 +6979,14 @@ packages:
     dependencies:
       punycode: 2.3.1
     dev: true
+
+  /use-sync-external-store@1.6.0(react@18.3.1):
+    resolution: {integrity: sha512-Pp6GSwGP/NrPIrxVFAIkOQeyw8lFenOHijQWkUTrDvrF4ALqylP2C/KCkeS9dpUM3KvYRQhna5vt7IL95+ZQ9w==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    dependencies:
+      react: 18.3.1
+    dev: false
 
   /util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
