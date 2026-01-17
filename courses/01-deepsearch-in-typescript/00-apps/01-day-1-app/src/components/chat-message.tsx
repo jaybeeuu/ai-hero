@@ -42,6 +42,30 @@ const Markdown = ({ children }: { children: string }) => {
   return <ReactMarkdown components={components}>{children}</ReactMarkdown>;
 };
 
+const Source = ({ part }: { part: MessagePart }) => {
+  if (part.type !== "source-url") return null;
+
+  const source = (part as any).source;
+  if (source.sourceType !== "url") return null;
+
+  return (
+    <div className="mb-2 rounded border border-gray-600 bg-gray-700 p-3 text-sm hover:border-gray-500">
+      <div className="mb-1 font-semibold text-gray-300">📚 Source</div>
+      <div className="mb-1 text-xs text-gray-400">
+        {source.title || "Untitled"}
+      </div>
+      <a
+        href={source.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="break-all text-xs text-blue-400 hover:underline"
+      >
+        {source.url}
+      </a>
+    </div>
+  );
+};
+
 const ToolInvocation = ({ part }: { part: MessagePart }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -111,16 +135,16 @@ const ToolInvocation = ({ part }: { part: MessagePart }) => {
                   </div>
                 )}
 
-                {"input" in part && part.input && (
+                {"input" in part && part.input ? (
                   <div>
                     <h3 className="mb-2 font-semibold text-gray-300">Input</h3>
                     <pre className="overflow-x-auto rounded bg-gray-800 p-3 font-mono text-sm text-gray-400">
-                      {JSON.stringify(part.input, null, 2)}
+                      {JSON.stringify(part.input as any, null, 2) ?? ""}
                     </pre>
                   </div>
-                )}
+                ) : null}
 
-                {"output" in part && part.output && (
+                {"output" in part && part.output ? (
                   <div>
                     <h3 className="mb-2 font-semibold text-gray-300">
                       Output{" "}
@@ -128,10 +152,10 @@ const ToolInvocation = ({ part }: { part: MessagePart }) => {
                         `(${part.output.length} results)`}
                     </h3>
                     <pre className="overflow-x-auto rounded bg-gray-800 p-3 font-mono text-sm text-gray-400">
-                      {JSON.stringify(part.output, null, 2)}
+                      {JSON.stringify(part.output as any, null, 2) ?? ""}
                     </pre>
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
             <div className="border-t border-gray-700 p-4">
@@ -167,6 +191,9 @@ export const ChatMessage = ({ parts, role, userName }: ChatMessageProps) => {
           {parts.map((part, index) => {
             if (part.type === "text") {
               return <Markdown key={index}>{part.text}</Markdown>;
+            }
+            if (part.type === "source-url") {
+              return <Source key={index} part={part} />;
             }
             if (part.type.startsWith("tool-")) {
               return <ToolInvocation key={index} part={part} />;
