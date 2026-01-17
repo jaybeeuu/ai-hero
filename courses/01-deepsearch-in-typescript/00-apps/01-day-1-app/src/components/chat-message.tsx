@@ -44,7 +44,7 @@ const Markdown = ({ children }: { children: string }) => {
 
 const ToolInvocation = ({ part }: { part: MessagePart }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   if (!part.type.startsWith("tool-")) return null;
 
   const toolName = part.type.replace("tool-", "");
@@ -52,7 +52,7 @@ const ToolInvocation = ({ part }: { part: MessagePart }) => {
   return (
     <>
       <div
-        className="mb-2 cursor-pointer rounded border border-gray-600 bg-gray-700 p-3 text-sm hover:border-gray-500 hover:bg-gray-650"
+        className="hover:bg-gray-650 mb-2 cursor-pointer rounded border border-gray-600 bg-gray-700 p-3 text-sm hover:border-gray-500"
         onClick={() => setIsOpen(true)}
       >
         <div className="mb-1 font-semibold text-gray-300">🔧 {toolName}</div>
@@ -110,7 +110,7 @@ const ToolInvocation = ({ part }: { part: MessagePart }) => {
                     </div>
                   </div>
                 )}
-                
+
                 {"input" in part && part.input && (
                   <div>
                     <h3 className="mb-2 font-semibold text-gray-300">Input</h3>
@@ -119,11 +119,13 @@ const ToolInvocation = ({ part }: { part: MessagePart }) => {
                     </pre>
                   </div>
                 )}
-                
+
                 {"output" in part && part.output && (
                   <div>
                     <h3 className="mb-2 font-semibold text-gray-300">
-                      Output {Array.isArray(part.output) && `(${part.output.length} results)`}
+                      Output{" "}
+                      {Array.isArray(part.output) &&
+                        `(${part.output.length} results)`}
                     </h3>
                     <pre className="overflow-x-auto rounded bg-gray-800 p-3 font-mono text-sm text-gray-400">
                       {JSON.stringify(part.output, null, 2)}
