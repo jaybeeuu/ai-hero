@@ -53,17 +53,10 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
             </div>
           ) : (
             messages.map((message, index) => {
-              // Extract text from UIMessage parts
-              const text =
-                message.parts
-                  ?.filter((part) => part.type === "text")
-                  .map((part) => part.text)
-                  .join("") || "";
-
               return (
                 <ChatMessage
                   key={message.id || index}
-                  text={text}
+                  parts={message.parts ?? []}
                   role={message.role}
                   userName={userName}
                 />
