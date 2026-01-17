@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChatMessage } from "~/components/chat-message";
 import { SignInModal } from "~/components/sign-in-modal";
 
@@ -15,7 +15,7 @@ interface ChatProps {
 export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
 
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
@@ -26,6 +26,8 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
       }
     },
   });
+
+  useEffect(() => console.log(messages), [messages]);
 
   const isLoading = status === "streaming" || status === "submitted";
 
