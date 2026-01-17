@@ -14,20 +14,20 @@ interface ChatProps {
 
 export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
-  
+
   const { messages, sendMessage, status, error } = useChat({
     transport: new DefaultChatTransport({
-      api: '/api/chat'
+      api: "/api/chat",
     }),
     onError: (err) => {
       // If we get a 401, show the sign-in modal
-      if (err.message.includes('401')) {
+      if (err.message.includes("401")) {
         setShowSignInModal(true);
       }
-    }
+    },
   });
 
-  const isLoading = status === 'streaming' || status === 'submitted';
+  const isLoading = status === "streaming" || status === "submitted";
 
   return (
     <>
@@ -52,10 +52,11 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
           ) : (
             messages.map((message, index) => {
               // Extract text from UIMessage parts
-              const text = message.parts
-                ?.filter(part => part.type === 'text')
-                .map(part => part.text)
-                .join('') || '';
+              const text =
+                message.parts
+                  ?.filter((part) => part.type === "text")
+                  .map((part) => part.text)
+                  .join("") || "";
 
               return (
                 <ChatMessage
@@ -78,11 +79,11 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
                 return;
               }
               const formData = new FormData(e.target as HTMLFormElement);
-              const input = formData.get('input') as string;
+              const input = formData.get("input") as string;
               if (input.trim()) {
                 sendMessage({
-                  role: 'user',
-                  parts: [{ type: 'text', text: input }]
+                  role: "user",
+                  parts: [{ type: "text", text: input }],
                 });
                 (e.target as HTMLFormElement).reset();
               }
@@ -92,7 +93,11 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
             <div className="flex gap-2">
               <input
                 name="input"
-                placeholder={isAuthenticated ? "Say something..." : "Please sign in to start chatting"}
+                placeholder={
+                  isAuthenticated
+                    ? "Say something..."
+                    : "Please sign in to start chatting"
+                }
                 autoFocus={isAuthenticated}
                 aria-label="Chat input"
                 disabled={isLoading || !isAuthenticated}
@@ -114,7 +119,10 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
         </div>
       </div>
 
-      <SignInModal isOpen={showSignInModal} onClose={() => setShowSignInModal(false)} />
+      <SignInModal
+        isOpen={showSignInModal}
+        onClose={() => setShowSignInModal(false)}
+      />
     </>
   );
 };
