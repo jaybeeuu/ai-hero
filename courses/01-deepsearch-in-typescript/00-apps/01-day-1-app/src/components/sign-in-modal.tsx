@@ -1,5 +1,5 @@
 import { signIn } from "next-auth/react";
-import { siDiscord } from "simple-icons/icons";
+import { siGithub } from "simple-icons/icons";
 
 interface SignInModalProps {
   isOpen: boolean;
@@ -26,11 +26,11 @@ export const SignInModal = ({ isOpen, onClose }: SignInModalProps) => {
             Cancel
           </button>
           <button
-            onClick={() => void signIn("discord")}
-            className="flex items-center gap-2 rounded bg-[#5865F2] px-4 py-2 text-white hover:bg-[#4752C4] focus:outline-none focus:ring-2 focus:ring-blue-400"
+            onClick={() => void signIn("github")}
+            className="flex items-center gap-2 rounded bg-gray-700 px-4 py-2 text-white hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d={siDiscord.path} />
+              <path d={siGithub.path} />
             </svg>
             Sign in
           </button>
