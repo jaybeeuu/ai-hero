@@ -39,6 +39,7 @@ export const users = createTable("user", {
 
 export const usersRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
+  requests: many(requests),
 }));
 
 export const accounts = createTable(
@@ -119,7 +120,7 @@ export const requests = createTable(
     userId: varchar("user_id", { length: 255 })
       .notNull()
       .references(() => users.id),
-    createdAt: timestamp("created_at", {
+    timestamp: timestamp("timestamp", {
       mode: "date",
       withTimezone: true,
     })
@@ -128,7 +129,7 @@ export const requests = createTable(
   },
   (request) => ({
     userIdIdx: index("request_user_id_idx").on(request.userId),
-    createdAtIdx: index("request_created_at_idx").on(request.createdAt),
+    timestampIdx: index("request_timestamp_idx").on(request.timestamp),
   }),
 );
 

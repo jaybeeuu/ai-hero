@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const requestCount = await db
       .select({ count: sql<number>`count(*)` })
       .from(requests)
-      .where(and(eq(requests.userId, userId), gte(requests.createdAt, today)));
+      .where(and(eq(requests.userId, userId), gte(requests.timestamp, today)));
 
     const count = requestCount[0]?.count ?? 0;
     if (count >= REQUESTS_PER_DAY) {
