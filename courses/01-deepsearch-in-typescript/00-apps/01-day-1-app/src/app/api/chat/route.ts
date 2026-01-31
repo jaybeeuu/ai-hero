@@ -10,14 +10,17 @@ import { eq, and, gte, sql } from "drizzle-orm";
 export const maxDuration = 60;
 
 const REQUESTS_PER_DAY = 10;
+const ADMIN_REQUESTS_PER_DAY = Infinity;
 
 const checkHasUserExceededRate = async (userId: string) => {
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
   });
 
+  const rateLimit = user?.isAdmin ? ADMIN_REQUESTS_PER_DAY : REQUESTS_PER_DAY;
+
   if (user?.isAdmin) {
-    return false;
+    return { exceeded: false, count: 0, rateLimit };
   }
 
   const today = new Date();
@@ -29,7 +32,7 @@ const checkHasUserExceededRate = async (userId: string) => {
     .where(and(eq(requests.userId, userId), gte(requests.timestamp, today)));
 
   const count = requestCount[0]?.count ?? 0;
-  return count >= REQUESTS_PER_DAY;
+  return { exceeded: count >= rateLimit, count, rateLimit };
 };
 
 export async function POST(request: Request) {
@@ -41,14 +44,36 @@ export async function POST(request: Request) {
 
   const userId = session.user.id;
 
-  const rateExceeded = await checkHasUserExceededRate(userId);
+  const {
+    exceeded: rateExceeded,
+    count: currentCount,
+    rateLimit,
+  } = await checkHasUserExceededRate(userId);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const resetTime = new Date(today);
+  resetTime.setDate(resetTime.getDate() + 1);
+
+  const rateLimitHeaders = {
+    "X-RateLimit-Limit": String(rateLimit),
+    "X-RateLimit-Remaining": String(Math.max(0, rateLimit - currentCount)),
+    "X-RateLimit-Reset": String(Math.floor(resetTime.getTime() / 1000)),
+  };
+
   if (rateExceeded) {
     return new Response(
       JSON.stringify({
         error:
           "Rate limit exceeded. You have reached the maximum number of requests for today.",
       }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          ...rateLimitHeaders,
+        },
+      },
     );
   }
 
@@ -92,5 +117,9 @@ export async function POST(request: Request) {
     stopWhen: stepCountIs(10),
   });
 
-  return result.toUIMessageStreamResponse();
+  const response = result.toUIMessageStreamResponse();
+  Object.entries(rateLimitHeaders).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
+  return response;
 }
