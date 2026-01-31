@@ -3,8 +3,13 @@ import { z } from "zod";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth";
 import { model } from "~/model";
+import { db } from "~/server/db";
+import { requests, users } from "~/server/db/schema";
+import { eq, and, gte, sql } from "drizzle-orm";
 
 export const maxDuration = 60;
+
+const REQUESTS_PER_DAY = 10;
 
 export async function POST(request: Request) {
   // Check if user is authenticated
@@ -12,6 +17,40 @@ export async function POST(request: Request) {
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });
   }
+
+  const userId = session.user.id;
+
+  // Check if user is admin
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
+
+  if (!user?.isAdmin) {
+    // Check rate limit for non-admin users
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const requestCount = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(requests)
+      .where(and(eq(requests.userId, userId), gte(requests.createdAt, today)));
+
+    const count = requestCount[0]?.count ?? 0;
+    if (count >= REQUESTS_PER_DAY) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Rate limit exceeded. You have reached the maximum number of requests for today.",
+        }),
+        { status: 429, headers: { "Content-Type": "application/json" } },
+      );
+    }
+  }
+
+  // Record the request
+  await db.insert(requests).values({
+    userId,
+  });
 
   const body = await request.json();
   const { messages } = body;
