@@ -11,6 +11,27 @@ export const maxDuration = 60;
 
 const REQUESTS_PER_DAY = 10;
 
+const checkHasUserExceededRate = async (userId: string) => {
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
+
+  if (user?.isAdmin) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const requestCount = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(requests)
+    .where(and(eq(requests.userId, userId), gte(requests.timestamp, today)));
+
+  const count = requestCount[0]?.count ?? 0;
+  return count >= REQUESTS_PER_DAY;
+};
+
 export async function POST(request: Request) {
   // Check if user is authenticated
   const session = await auth();
@@ -20,31 +41,15 @@ export async function POST(request: Request) {
 
   const userId = session.user.id;
 
-  // Check if user is admin
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, userId),
-  });
-
-  if (!user?.isAdmin) {
-    // Check rate limit for non-admin users
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const requestCount = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(requests)
-      .where(and(eq(requests.userId, userId), gte(requests.timestamp, today)));
-
-    const count = requestCount[0]?.count ?? 0;
-    if (count >= REQUESTS_PER_DAY) {
-      return new Response(
-        JSON.stringify({
-          error:
-            "Rate limit exceeded. You have reached the maximum number of requests for today.",
-        }),
-        { status: 429, headers: { "Content-Type": "application/json" } },
-      );
-    }
+  const rateExceeded = await checkHasUserExceededRate(userId);
+  if (rateExceeded) {
+    return new Response(
+      JSON.stringify({
+        error:
+          "Rate limit exceeded. You have reached the maximum number of requests for today.",
+      }),
+      { status: 429, headers: { "Content-Type": "application/json" } },
+    );
   }
 
   // Record the request
