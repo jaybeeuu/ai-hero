@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChatMessage } from "~/components/chat-message";
 import { SignInModal } from "~/components/sign-in-modal";
 
@@ -14,6 +14,9 @@ interface ChatProps {
 
 export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
@@ -27,14 +30,27 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
     },
   });
 
+  const isLoading = status === "streaming" || status === "submitted";
+
   useEffect(() => console.log(messages), [messages]);
 
-  const isLoading = status === "streaming" || status === "submitted";
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // Restore focus to input after sending
+  useEffect(() => {
+    if (!isLoading) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading]);
 
   return (
     <>
       <div className="flex flex-1 flex-col">
         <div
+          ref={messagesContainerRef}
           className="mx-auto w-full max-w-[65ch] flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500"
           role="log"
           aria-label="Chat messages"
@@ -63,6 +79,7 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
               );
             })
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         <div className="border-t border-gray-700">
@@ -86,7 +103,8 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
             className="mx-auto max-w-[65ch] p-4"
           >
             <div className="flex gap-2">
-              <input
+              <textarea
+                ref={inputRef}
                 name="input"
                 placeholder={
                   isAuthenticated
@@ -96,7 +114,21 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
                 autoFocus={isAuthenticated}
                 aria-label="Chat input"
                 disabled={isLoading || !isAuthenticated}
-                className="flex-1 rounded border border-gray-700 bg-gray-800 p-2 text-gray-200 placeholder-gray-400 focus:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+                rows={1}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = "auto";
+                  const newHeight = Math.min(target.scrollHeight, 200);
+                  target.style.height = `${newHeight}px`;
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    (e.target as HTMLTextAreaElement).form?.requestSubmit();
+                  }
+                }}
+                className="flex-1 resize-none rounded border border-gray-700 bg-gray-800 p-2 text-gray-200 placeholder-gray-400 focus:border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+                style={{ overflow: "hidden", maxHeight: "200px" }}
               />
               <button
                 type="submit"
