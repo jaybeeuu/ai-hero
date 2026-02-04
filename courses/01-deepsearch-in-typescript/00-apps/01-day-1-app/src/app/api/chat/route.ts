@@ -1,4 +1,10 @@
-import { stepCountIs, streamText, convertToModelMessages } from "ai";
+import {
+  stepCountIs,
+  streamText,
+  convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+} from "ai";
 import type { UIMessage } from "ai";
 import { z } from "zod";
 import { searchSerper } from "~/serper";
@@ -134,14 +140,44 @@ const saveCompletedChat = async (opts: {
   });
 };
 
-const addRateLimitHeaders = (
-  response: Response,
-  headers: Record<string, string>,
-): Response => {
-  Object.entries(headers).forEach(([key, value]) => {
-    response.headers.set(key, value);
+type NewChatCreatedData = {
+  type: "NEW_CHAT_CREATED";
+  chatId: string;
+};
+
+const createDataStreamResponse = (opts: {
+  headers: Record<string, string>;
+  originalMessages: UIMessage[];
+  onFinish: (event: { messages: UIMessage[] }) => Promise<void> | void;
+  execute: (dataStream: {
+    writeData: (data: NewChatCreatedData) => void;
+    merge: (stream: ReadableStream) => void;
+  }) => Promise<void> | void;
+}) => {
+  const { headers, originalMessages, onFinish, execute } = opts;
+  const stream = createUIMessageStream({
+    originalMessages,
+    onFinish,
+    execute: async ({ writer }) => {
+      await execute({
+        writeData: (data) => {
+          writer.write({
+            type: "data-new-chat-created",
+            data,
+            transient: true,
+          });
+        },
+        merge: (streamToMerge) => {
+          writer.merge(streamToMerge as ReadableStream);
+        },
+      });
+    },
   });
-  return response;
+
+  return createUIMessageStreamResponse({
+    stream,
+    headers,
+  });
 };
 
 export async function POST(request: Request) {
@@ -177,6 +213,7 @@ export async function POST(request: Request) {
     chatId,
     title,
   });
+  const isNewChat = !chatId;
   const rateLimitHeaders = getRateLimitHeaders(rateLimit, currentCount);
 
   const modelMessages = await convertToModelMessages(messages);
@@ -210,7 +247,8 @@ export async function POST(request: Request) {
     stopWhen: stepCountIs(10),
   });
 
-  const response = result.toUIMessageStreamResponse({
+  return createDataStreamResponse({
+    headers: rateLimitHeaders,
     originalMessages: messages,
     onFinish: async (event) => {
       await saveCompletedChat({
@@ -220,6 +258,18 @@ export async function POST(request: Request) {
         title,
       });
     },
+    execute: async (dataStream) => {
+      if (isNewChat) {
+        dataStream.writeData({
+          type: "NEW_CHAT_CREATED",
+          chatId: currentChatId,
+        });
+      }
+      dataStream.merge(
+        result.toUIMessageStream({
+          originalMessages: messages,
+        }) as ReadableStream,
+      );
+    },
   });
-  return addRateLimitHeaders(response, rateLimitHeaders);
 }

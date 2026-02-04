@@ -3,25 +3,40 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ChatMessage } from "~/components/chat-message";
 import { SignInModal } from "~/components/sign-in-modal";
+import { isNewChatCreated } from "~/utils/chat";
 
 interface ChatProps {
   userName: string;
   isAuthenticated: boolean;
+  chatId?: string;
 }
 
-export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
+export const ChatPage = ({ userName, isAuthenticated, chatId }: ChatProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
+  const [data, setData] = useState<Array<{ type: "NEW_CHAT_CREATED"; chatId: string }>>(
+    [],
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
     }),
+    body: {
+      chatId,
+    },
+    onData: (dataPart) => {
+      if (isNewChatCreated(dataPart.data)) {
+        setData((prev) => [...prev, dataPart.data]);
+      }
+    },
     onError: (err) => {
       // If we get a 401, show the sign-in modal
       if (err.message.includes("401")) {
@@ -33,6 +48,13 @@ export const ChatPage = ({ userName, isAuthenticated }: ChatProps) => {
   const isLoading = status === "streaming" || status === "submitted";
 
   useEffect(() => console.log(messages), [messages]);
+
+  useEffect(() => {
+    const lastDataItem = data[data.length - 1];
+    if (lastDataItem && lastDataItem.chatId !== chatId) {
+      router.push(`?id=${lastDataItem.chatId}`);
+    }
+  }, [data, chatId, router]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
