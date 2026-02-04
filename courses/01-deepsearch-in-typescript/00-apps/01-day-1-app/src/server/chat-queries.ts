@@ -11,7 +11,7 @@ import {
 export const upsertChat = async (opts: {
   userId: string;
   chatId: string;
-  title: string;
+  title?: string;
   messages: UIMessage[];
 }) => {
   const { userId, chatId, title, messages: newMessages } = opts;
@@ -28,18 +28,20 @@ export const upsertChat = async (opts: {
     if (existingChat) {
       await db.delete(messages).where(eq(messages.chatId, chatId));
 
-      await db
-        .update(chats)
-        .set({
-          title,
-          updatedAt: new Date(),
-        })
-        .where(eq(chats.id, chatId));
+      const updateValues: Partial<typeof chats.$inferInsert> = {
+        updatedAt: new Date(),
+      };
+
+      if (title !== undefined) {
+        updateValues.title = title;
+      }
+
+      await db.update(chats).set(updateValues).where(eq(chats.id, chatId));
     } else {
       await db.insert(chats).values({
         id: chatId,
         userId,
-        title,
+        title: title ?? "New Chat",
       });
     }
 

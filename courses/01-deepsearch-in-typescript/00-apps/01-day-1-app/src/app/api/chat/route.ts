@@ -42,29 +42,15 @@ const extractTitleFromMessage = (message: UIMessage): string => {
     return "New Chat";
   }
 
-  const firstPart = message.parts[0];
-  if (firstPart && typeof firstPart === "object" && "text" in firstPart) {
-    return (firstPart as { text: string }).text.slice(0, 50);
+  const textPart = message.parts.find(
+    (part): part is { type: "text"; text: string } =>
+      typeof part === "object" && "type" in part && part.type === "text",
+  );
+  if (textPart) {
+    return textPart.text.slice(0, 50);
   }
 
   return "New Chat";
-};
-
-const extractContentText = (
-  content: string | (Record<string, unknown> & { text?: string })[],
-): string => {
-  if (typeof content === "string") {
-    return content;
-  }
-
-  if (Array.isArray(content)) {
-    return content
-      .filter((part) => "text" in part)
-      .map((part) => ("text" in part ? String(part.text) : ""))
-      .join("");
-  }
-
-  return "";
 };
 
 const getRateLimitResponse = (
@@ -103,68 +89,48 @@ const getRateLimitHeaders = (
   };
 };
 
-const getOrCreateChat = async (
-  userId: string,
-  messages: UIMessage[],
-  chatId?: string,
-): Promise<string> => {
+const getOrCreateChat = async (opts: {
+  userId: string;
+  messages: UIMessage[];
+  chatId?: string;
+  title?: string;
+}): Promise<string> => {
+  const { userId, messages, chatId, title } = opts;
   if (chatId) {
     return chatId;
   }
 
   const newChatId = crypto.randomUUID();
   const lastMessage = messages[messages.length - 1];
-  const title = lastMessage ? extractTitleFromMessage(lastMessage) : "New Chat";
+  const resolvedTitle =
+    title && title.trim().length > 0
+      ? title
+      : lastMessage
+        ? extractTitleFromMessage(lastMessage)
+        : "New Chat";
 
   await upsertChat({
     userId,
     chatId: newChatId,
-    title,
+    title: resolvedTitle,
     messages,
   });
 
   return newChatId;
 };
 
-const saveCompletedChat = async (
-  userId: string,
-  chatId: string,
-  messages: UIMessage[],
-  responseMessages: unknown[],
-): Promise<void> => {
-  const assistantMessage = (
-    responseMessages as { role?: string; content?: unknown }[]
-  ).find((msg) => msg.role === "assistant");
-
-  if (!assistantMessage) {
-    return;
-  }
-
-  const contentText = extractContentText(
-    assistantMessage.content as
-      | string
-      | (Record<string, unknown> & { text?: string })[],
-  );
-
-  if (!contentText) {
-    return;
-  }
-
-  const updatedMessages: UIMessage[] = [
-    ...messages,
-    {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      parts: [{ type: "text" as const, text: contentText }],
-    },
-  ];
-
-  const title = contentText.slice(0, 50);
+const saveCompletedChat = async (opts: {
+  userId: string;
+  chatId: string;
+  messages: UIMessage[];
+  title?: string;
+}): Promise<void> => {
+  const { userId, chatId, messages, title } = opts;
   await upsertChat({
     userId,
     chatId,
     title,
-    messages: updatedMessages,
+    messages,
   });
 };
 
@@ -199,9 +165,18 @@ export async function POST(request: Request) {
   await db.insert(requests).values({ userId });
 
   const body = await request.json();
-  const { messages, chatId }: { messages: UIMessage[]; chatId?: string } = body;
+  const {
+    messages,
+    chatId,
+    title,
+  }: { messages: UIMessage[]; chatId?: string; title?: string } = body;
 
-  const currentChatId = await getOrCreateChat(userId, messages, chatId);
+  const currentChatId = await getOrCreateChat({
+    userId,
+    messages,
+    chatId,
+    title,
+  });
   const rateLimitHeaders = getRateLimitHeaders(rateLimit, currentCount);
 
   const modelMessages = await convertToModelMessages(messages);
@@ -233,18 +208,18 @@ export async function POST(request: Request) {
       },
     },
     stopWhen: stepCountIs(10),
-    onFinish: async (event) => {
-      if (event.response?.messages) {
-        await saveCompletedChat(
-          userId,
-          currentChatId,
-          messages,
-          event.response.messages,
-        );
-      }
-    },
   });
 
-  const response = result.toUIMessageStreamResponse();
+  const response = result.toUIMessageStreamResponse({
+    originalMessages: messages,
+    onFinish: async (event) => {
+      await saveCompletedChat({
+        userId,
+        chatId: currentChatId,
+        messages: event.messages,
+        title,
+      });
+    },
+  });
   return addRateLimitHeaders(response, rateLimitHeaders);
 }

@@ -18,17 +18,24 @@ const reasoningPartSchema = basePartSchema.extend({
   state: z.enum(["streaming", "done"]).optional(),
 });
 
+const toolStateSchema = z.enum([
+  "input-streaming",
+  "input-available",
+  "output-streaming",
+  "done",
+  "error",
+  "user-approval-requested",
+  "approval-requested",
+  "approval-responded",
+  "output-available",
+  "output-error",
+  "output-denied",
+]);
+
 const toolInvocationPartSchema = basePartSchema.extend({
   type: z.literal("tool-invocation"),
   toolCallId: z.string(),
-  state: z.enum([
-    "input-streaming",
-    "input-available",
-    "output-streaming",
-    "done",
-    "error",
-    "user-approval-requested",
-  ]),
+  state: toolStateSchema,
   input: z.unknown().optional(),
   output: z.unknown().optional(),
   providerExecuted: z.boolean().optional(),
@@ -79,14 +86,20 @@ const typedToolPartSchema = z
   .object({
     type: z.string().regex(/^tool-/),
     toolCallId: z.string(),
-    state: z.enum([
-      "input-streaming",
-      "input-available",
-      "output-streaming",
-      "done",
-      "error",
-      "user-approval-requested",
-    ]),
+    state: toolStateSchema,
+    input: z.unknown().optional(),
+    output: z.unknown().optional(),
+    providerExecuted: z.boolean().optional(),
+    errorText: z.string().optional(),
+  })
+  .passthrough();
+
+const dynamicToolPartSchema = z
+  .object({
+    type: z.literal("dynamic-tool"),
+    toolName: z.string(),
+    toolCallId: z.string(),
+    state: toolStateSchema,
     input: z.unknown().optional(),
     output: z.unknown().optional(),
     providerExecuted: z.boolean().optional(),
@@ -105,6 +118,7 @@ export const messagePartsV1 = z.array(
       filePartSchema,
       stepStartPartSchema,
       imagePartSchema,
+      dynamicToolPartSchema,
     ])
     .or(dataPartSchema)
     .or(typedToolPartSchema),
