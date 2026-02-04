@@ -20,7 +20,7 @@ import type { InferSelectModel, InferInsertModel } from "drizzle-orm";
  *
  * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
  */
-export const createTable = pgTableCreator((name) => `ai-app-template_${name}`);
+export const createTable = pgTableCreator((name) => `ai-hero_${name}`);
 
 export const users = createTable("user", {
   id: varchar("id", { length: 255 })

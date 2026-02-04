@@ -9,7 +9,7 @@
 
 # On Linux and macOS you can run this script directly - `./start-database.sh`
 
-DB_CONTAINER_NAME="ai-app-template-postgres"
+DB_CONTAINER_NAME="ai-hero-postgres"
 
 if ! [ -x "$(command -v docker)" ]; then
   echo -e "Docker is not installed. Please install docker and try again.\nDocker install guide: https://docs.docker.com/engine/install/"
@@ -55,6 +55,6 @@ docker run -d \
   --name $DB_CONTAINER_NAME \
   -e POSTGRES_USER="postgres" \
   -e POSTGRES_PASSWORD="$DB_PASSWORD" \
-  -e POSTGRES_DB=ai-app-template \
+  -e POSTGRES_DB=ai-hero \
   -p "$DB_PORT":5432 \
   pgvector/pgvector:pg17 && echo "Database container '$DB_CONTAINER_NAME' was successfully created"
