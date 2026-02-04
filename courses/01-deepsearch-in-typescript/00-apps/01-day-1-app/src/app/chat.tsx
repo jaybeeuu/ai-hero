@@ -2,6 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
+import type { UIMessage } from "ai";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -13,13 +14,21 @@ interface ChatProps {
   userName: string;
   isAuthenticated: boolean;
   chatId?: string;
+  isNewChat: boolean;
+  initialMessages: UIMessage[];
 }
 
-export const ChatPage = ({ userName, isAuthenticated, chatId }: ChatProps) => {
+export const ChatPage = ({
+  userName,
+  isAuthenticated,
+  chatId,
+  isNewChat,
+  initialMessages,
+}: ChatProps) => {
   const [showSignInModal, setShowSignInModal] = useState(false);
-  const [data, setData] = useState<Array<{ type: "NEW_CHAT_CREATED"; chatId: string }>>(
-    [],
-  );
+  const [data, setData] = useState<
+    Array<{ type: "NEW_CHAT_CREATED"; chatId: string }>
+  >([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -28,13 +37,16 @@ export const ChatPage = ({ userName, isAuthenticated, chatId }: ChatProps) => {
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
+      body: {
+        chatId,
+        isNewChat,
+      },
     }),
-    body: {
-      chatId,
-    },
+    messages: initialMessages,
     onData: (dataPart) => {
-      if (isNewChatCreated(dataPart.data)) {
-        setData((prev) => [...prev, dataPart.data]);
+      const dataItem = dataPart.data;
+      if (isNewChatCreated(dataItem)) {
+        setData((prev) => [...prev, dataItem]);
       }
     },
     onError: (err) => {
@@ -51,10 +63,10 @@ export const ChatPage = ({ userName, isAuthenticated, chatId }: ChatProps) => {
 
   useEffect(() => {
     const lastDataItem = data[data.length - 1];
-    if (lastDataItem && lastDataItem.chatId !== chatId) {
+    if (lastDataItem && isNewChat) {
       router.push(`?id=${lastDataItem.chatId}`);
     }
-  }, [data, chatId, router]);
+  }, [data, isNewChat, router]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {

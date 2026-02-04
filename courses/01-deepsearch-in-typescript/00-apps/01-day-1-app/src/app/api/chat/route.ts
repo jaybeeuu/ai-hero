@@ -95,18 +95,13 @@ const getRateLimitHeaders = (
   };
 };
 
-const getOrCreateChat = async (opts: {
+const ensureNewChat = async (opts: {
   userId: string;
+  chatId: string;
   messages: UIMessage[];
-  chatId?: string;
   title?: string;
-}): Promise<string> => {
-  const { userId, messages, chatId, title } = opts;
-  if (chatId) {
-    return chatId;
-  }
-
-  const newChatId = crypto.randomUUID();
+}) => {
+  const { userId, chatId, messages, title } = opts;
   const lastMessage = messages[messages.length - 1];
   const resolvedTitle =
     title && title.trim().length > 0
@@ -117,12 +112,10 @@ const getOrCreateChat = async (opts: {
 
   await upsertChat({
     userId,
-    chatId: newChatId,
+    chatId,
     title: resolvedTitle,
     messages,
   });
-
-  return newChatId;
 };
 
 const saveCompletedChat = async (opts: {
@@ -205,15 +198,23 @@ export async function POST(request: Request) {
     messages,
     chatId,
     title,
-  }: { messages: UIMessage[]; chatId?: string; title?: string } = body;
+    isNewChat,
+  }: {
+    messages: UIMessage[];
+    chatId: string;
+    title?: string;
+    isNewChat?: boolean;
+  } = body;
 
-  const currentChatId = await getOrCreateChat({
-    userId,
-    messages,
-    chatId,
-    title,
-  });
-  const isNewChat = !chatId;
+  if (isNewChat) {
+    await ensureNewChat({
+      userId,
+      chatId,
+      messages,
+      title,
+    });
+  }
+  const currentChatId = chatId;
   const rateLimitHeaders = getRateLimitHeaders(rateLimit, currentCount);
 
   const modelMessages = await convertToModelMessages(messages);

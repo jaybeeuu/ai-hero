@@ -1,26 +1,43 @@
 import { PlusIcon } from "lucide-react";
 import Link from "next/link";
+import type { UIMessage } from "ai";
+import { unstable_noStore as noStore } from "next/cache";
 import { auth } from "~/server/auth/index.ts";
+import { getChat, getChats } from "~/server/chat-queries";
 import { ChatPage } from "./chat.tsx";
 import { AuthButton } from "../components/auth-button.tsx";
-
-const chats = [
-  {
-    id: "1",
-    title: "My First Chat",
-  },
-];
 
 export default async function HomePage({
   searchParams,
 }: {
   searchParams: Promise<{ id?: string }>;
 }) {
+  noStore();
   const { id } = await searchParams;
   const activeChatId = id ?? "";
   const session = await auth();
   const userName = session?.user?.name ?? "Guest";
   const isAuthenticated = !!session?.user;
+  const userId = session?.user?.id;
+  const isNewChat = !id;
+  const chatId = id ?? crypto.randomUUID();
+
+  const chats = userId ? await getChats({ userId }) : [];
+
+  const chat =
+    userId && id
+      ? await getChat({
+          userId,
+          chatId: id,
+        })
+      : null;
+
+  const initialMessages = (chat?.messages?.map((msg) => ({
+    id: msg.id,
+    role: msg.role as "user" | "assistant",
+    parts: msg.parts as UIMessage["parts"],
+    content: "",
+  })) ?? []) as UIMessage[];
 
   return (
     <div className="flex h-screen bg-gray-950">
@@ -73,9 +90,12 @@ export default async function HomePage({
       </div>
 
       <ChatPage
+        key={chatId}
         userName={userName}
         isAuthenticated={isAuthenticated}
-        chatId={id}
+        chatId={chatId}
+        isNewChat={isNewChat}
+        initialMessages={initialMessages}
       />
     </div>
   );
