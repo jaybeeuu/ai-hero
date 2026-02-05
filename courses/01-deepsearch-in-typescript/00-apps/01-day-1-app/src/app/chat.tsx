@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChatMessage } from "~/components/chat-message";
 import { SignInModal } from "~/components/sign-in-modal";
 import { isNewChatCreated } from "~/utils/chat";
+import { StickToBottom } from "use-stick-to-bottom";
 
 interface ChatProps {
   userName: string;
@@ -29,9 +30,7 @@ export const ChatPage = ({
   const [data, setData] = useState<
     Array<{ type: "NEW_CHAT_CREATED"; chatId: string }>
   >([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const { messages, sendMessage, status } = useChat({
@@ -68,11 +67,6 @@ export const ChatPage = ({
     }
   }, [data, isNewChat, router]);
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   // Restore focus to input after sending
   useEffect(() => {
     if (!isLoading) {
@@ -82,41 +76,44 @@ export const ChatPage = ({
 
   return (
     <>
-      <div className="flex flex-1 flex-col">
-        <div
-          ref={messagesContainerRef}
-          className="mx-auto w-full max-w-[65ch] flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500"
-          role="log"
-          aria-label="Chat messages"
+      <div className="flex h-full min-h-0 flex-1 flex-col">
+        <StickToBottom
+          className="mx-auto flex h-full min-h-0 w-full max-w-[65ch] flex-1 flex-col"
+          resize="smooth"
+          initial="smooth"
         >
-          {!isAuthenticated ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center text-gray-400">
-                <p className="mb-4">Please sign in to start chatting</p>
+          <StickToBottom.Content
+            className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-track-gray-800 scrollbar-thumb-gray-600 hover:scrollbar-thumb-gray-500"
+            role="log"
+            aria-label="Chat messages"
+          >
+            {!isAuthenticated ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="text-center text-gray-400">
+                  <p className="mb-4">Please sign in to start chatting</p>
+                </div>
               </div>
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center">
-              <div className="text-center text-gray-400">
-                <p>Start a conversation by typing a message below</p>
+            ) : messages.length === 0 ? (
+              <div className="flex h-full items-center justify-center">
+                <div className="text-center text-gray-400">
+                  <p>Start a conversation by typing a message below</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            messages.map((message, index) => {
-              return (
-                <ChatMessage
-                  key={message.id || index}
-                  parts={message.parts ?? []}
-                  role={message.role}
-                  userName={userName}
-                />
-              );
-            })
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-
-        <div className="border-t border-gray-700">
+            ) : (
+              messages.map((message, index) => {
+                return (
+                  <ChatMessage
+                    key={message.id || index}
+                    parts={message.parts ?? []}
+                    role={message.role}
+                    userName={userName}
+                  />
+                );
+              })
+            )}
+          </StickToBottom.Content>
+        </StickToBottom>
+        <div className="flex-none border-t border-gray-700">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -134,7 +131,7 @@ export const ChatPage = ({
                 (e.target as HTMLFormElement).reset();
               }
             }}
-            className="mx-auto max-w-[65ch] p-4"
+            className="p-4"
           >
             <div className="flex gap-2">
               <textarea
