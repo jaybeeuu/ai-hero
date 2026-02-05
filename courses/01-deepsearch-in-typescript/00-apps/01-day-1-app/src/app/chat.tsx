@@ -30,7 +30,7 @@ export const ChatPage = ({
   const [data, setData] = useState<
     Array<{ type: "NEW_CHAT_CREATED"; chatId: string }>
   >([]);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const inputRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const { messages, sendMessage, status } = useChat({
@@ -112,19 +112,19 @@ export const ChatPage = ({
               })
             )}
           </StickToBottom.Content>
+          <ChatInput
+            ref={inputRef}
+            isAuthenticated={isAuthenticated}
+            isLoading={isLoading}
+            onRequireSignIn={() => setShowSignInModal(true)}
+            onSend={(input) =>
+              sendMessage({
+                role: "user",
+                parts: [{ type: "text", text: input }],
+              })
+            }
+          />
         </StickToBottom>
-        <ChatInput
-          ref={inputRef}
-          isAuthenticated={isAuthenticated}
-          isLoading={isLoading}
-          onRequireSignIn={() => setShowSignInModal(true)}
-          onSend={(input) =>
-            sendMessage({
-              role: "user",
-              parts: [{ type: "text", text: input }],
-            })
-          }
-        />
       </div>
 
       <SignInModal
