@@ -7,6 +7,9 @@ import {
 } from "ai";
 import type { UIMessage } from "ai";
 import { z } from "zod";
+import { after } from "next/server";
+import { observe, updateActiveObservation, updateActiveTrace } from "@langfuse/tracing";
+import { trace } from "@opentelemetry/api";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth";
 import { model } from "~/model";
@@ -14,6 +17,7 @@ import { db } from "~/server/db";
 import { requests, users } from "~/server/db/schema";
 import { upsertChat } from "~/server/chat-queries";
 import { eq, and, gte, sql } from "drizzle-orm";
+import { langfuseSpanProcessor } from "~/instrumentation";
 
 export const maxDuration = 60;
 
@@ -173,7 +177,7 @@ const createDataStreamResponse = (opts: {
   });
 };
 
-export async function POST(request: Request) {
+const handler = async (request: Request) => {
   const session = await auth();
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });
@@ -217,6 +221,12 @@ export async function POST(request: Request) {
   const currentChatId = chatId;
   const rateLimitHeaders = getRateLimitHeaders(rateLimit, currentCount);
 
+  updateActiveTrace({
+    name: "chat",
+    sessionId: currentChatId,
+    userId: session.user.id,
+  });
+
   const modelMessages = await convertToModelMessages(messages);
 
   const result = streamText({
@@ -246,7 +256,33 @@ export async function POST(request: Request) {
       },
     },
     stopWhen: stepCountIs(10),
-    experimental_telemetry: { isEnabled: true },
+    experimental_telemetry: {
+      isEnabled: true,
+      functionId: "agent",
+    },
+    onFinish: async (result) => {
+      updateActiveObservation({
+        output: result.text,
+      });
+      updateActiveTrace({
+        output: result.text,
+      });
+      trace.getActiveSpan()?.end();
+    },
+    onError: async (error) => {
+      updateActiveObservation({
+        output: String(error),
+        level: "ERROR",
+      });
+      updateActiveTrace({
+        output: String(error),
+      });
+      trace.getActiveSpan()?.end();
+    },
+  });
+
+  after(async () => {
+    await langfuseSpanProcessor.forceFlush();
   });
 
   return createDataStreamResponse({
@@ -274,4 +310,9 @@ export async function POST(request: Request) {
       );
     },
   });
-}
+};
+
+export const POST = observe(handler, {
+  name: "handle-chat-message",
+  endOnExit: false,
+});
