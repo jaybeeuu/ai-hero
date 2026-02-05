@@ -8,7 +8,11 @@ import {
 import type { UIMessage } from "ai";
 import { z } from "zod";
 import { after } from "next/server";
-import { observe, updateActiveObservation, updateActiveTrace } from "@langfuse/tracing";
+import {
+  observe,
+  updateActiveObservation,
+  updateActiveTrace,
+} from "@langfuse/tracing";
 import { trace } from "@opentelemetry/api";
 import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth";
@@ -18,11 +22,17 @@ import { requests, users } from "~/server/db/schema";
 import { upsertChat } from "~/server/chat-queries";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { langfuseSpanProcessor } from "~/instrumentation";
+import { cacheWithRedis } from "~/server/redis/redis";
+import { crawlMultipleUrls } from "~/crawler";
 
 export const maxDuration = 60;
 
 const REQUESTS_PER_DAY = 10;
 const ADMIN_REQUESTS_PER_DAY = Infinity;
+
+const scrapePages = cacheWithRedis("scrapePages", async (urls: string[]) => {
+  return crawlMultipleUrls({ urls });
+});
 
 const checkHasUserExceededRate = async (userId: string) => {
   const user = await db.query.users.findFirst({
@@ -234,6 +244,8 @@ const handler = async (request: Request) => {
     system:
       "You are a web-enabled research assistant. Always search the web before answering to ensure responses are current. " +
       "Use the searchWeb tool for every user question, even if you think you know the answer. " +
+      "You also have access to a scrapePages tool that fetches full page text and converts it to markdown. " +
+      "Use scrapePages when you need full context beyond search snippets or when validating specific claims from a page. " +
       "Cite all supporting sources inline using markdown links [title](url). If no sources are available, state that clearly.",
     messages: modelMessages,
     tools: {
@@ -252,6 +264,14 @@ const handler = async (request: Request) => {
             link: result.link,
             snippet: result.snippet,
           }));
+        },
+      },
+      scrapePages: {
+        inputSchema: z.object({
+          urls: z.array(z.string().url()).describe("List of URLs to scrape"),
+        }),
+        execute: async ({ urls }) => {
+          return scrapePages(urls);
         },
       },
     },
