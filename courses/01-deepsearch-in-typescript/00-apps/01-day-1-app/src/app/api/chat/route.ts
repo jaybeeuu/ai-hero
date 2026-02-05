@@ -23,7 +23,7 @@ import { upsertChat } from "~/server/chat-queries";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { langfuseSpanProcessor } from "~/instrumentation";
 import { cacheWithRedis } from "~/server/redis/redis";
-import { crawlMultipleUrls } from "~/crawler";
+import { scrapeMultipleUrls } from "~/scraper";
 
 export const maxDuration = 60;
 
@@ -31,7 +31,7 @@ const REQUESTS_PER_DAY = 10;
 const ADMIN_REQUESTS_PER_DAY = Infinity;
 
 const scrapePages = cacheWithRedis("scrapePages", async (urls: string[]) => {
-  return crawlMultipleUrls({ urls });
+  return scrapeMultipleUrls({ urls });
 });
 
 const checkHasUserExceededRate = async (userId: string) => {
@@ -245,7 +245,12 @@ const handler = async (request: Request) => {
       "You are a web-enabled research assistant. Always search the web before answering to ensure responses are current. " +
       "Use the searchWeb tool for every user question, even if you think you know the answer. " +
       "You also have access to a scrapePages tool that fetches full page text and converts it to markdown. " +
-      "Use scrapePages when you need full context beyond search snippets or when validating specific claims from a page. " +
+      "Always use scrapePages for any URLs you plan to cite so you rely on full page context, not snippets. " +
+      "Workflow:" +
+      "  -use searchWeb to identify sources" +
+      "  -select a diverse set of websites" +
+      "  -scrape a handful (4-6) from the results" +
+      "  -use the content to provide comprehensive, well-informed answers. " +
       "Cite all supporting sources inline using markdown links [title](url). If no sources are available, state that clearly.",
     messages: modelMessages,
     tools: {
