@@ -15,6 +15,9 @@ export const env = createEnv({
     DATABASE_URL: z.string().url(),
     OPENAI_API_KEY: z.string(),
     SERPER_API_KEY: z.string(),
+    LANGFUSE_SECRET_KEY: z.string(),
+    LANGFUSE_PUBLIC_KEY: z.string(),
+    LANGFUSE_BASE_URL: z.string().url(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -37,6 +40,9 @@ export const env = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     SERPER_API_KEY: process.env.SERPER_API_KEY,
+    LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
+    LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
+    LANGFUSE_BASE_URL: process.env.LANGFUSE_BASE_URL,
     NODE_ENV: process.env.NODE_ENV,
   },
   /**

@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { forwardRef, useState } from "react";
+import { forwardRef, useCallback, useRef } from "react";
 import { useStickToBottomContext } from "use-stick-to-bottom";
 
 interface ChatInputProps {
@@ -14,8 +14,21 @@ interface ChatInputProps {
 export const ChatInput = forwardRef<HTMLDivElement, ChatInputProps>(
   ({ isAuthenticated, isLoading, onSend, onRequireSignIn }, ref) => {
     const isDisabled = isLoading || !isAuthenticated;
-    const [input, setInput] = useState("");
+    const inputRef = useRef<HTMLDivElement>(null);
     const { isAtBottom, scrollToBottom } = useStickToBottomContext();
+
+    const setRef = useCallback(
+      (node: HTMLDivElement | null) => {
+        (inputRef as React.MutableRefObject<HTMLDivElement | null>).current =
+          node;
+        if (typeof ref === "function") {
+          ref(node);
+        } else if (ref) {
+          ref.current = node;
+        }
+      },
+      [ref],
+    );
 
     return (
       <div className="flex-none border-t border-gray-700">
@@ -26,16 +39,19 @@ export const ChatInput = forwardRef<HTMLDivElement, ChatInputProps>(
               onRequireSignIn();
               return;
             }
+            const input = inputRef.current?.textContent ?? "";
             if (input.trim()) {
               onSend(input);
-              setInput("");
+              if (inputRef.current) {
+                inputRef.current.textContent = "";
+              }
             }
           }}
           className="p-4"
         >
           <div className="flex items-end gap-2">
             <div
-              ref={ref}
+              ref={setRef}
               data-placeholder={
                 isAuthenticated
                   ? "Say something..."
@@ -51,11 +67,10 @@ export const ChatInput = forwardRef<HTMLDivElement, ChatInputProps>(
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  (e.currentTarget as HTMLDivElement).form?.requestSubmit();
+                  e.currentTarget.closest("form")?.requestSubmit();
                 }
               }}
-              onInput={(e) => {
-                setInput(e.currentTarget.textContent ?? "");
+              onInput={() => {
                 if (isAtBottom) {
                   requestAnimationFrame(() => scrollToBottom());
                 }
@@ -68,9 +83,7 @@ export const ChatInput = forwardRef<HTMLDivElement, ChatInputProps>(
                 minHeight: "2.5rem",
                 overflowY: "auto",
               }}
-            >
-              {input}
-            </div>
+            />
             <button
               type="submit"
               disabled={isDisabled}

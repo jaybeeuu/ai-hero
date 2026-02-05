@@ -246,6 +246,7 @@ export async function POST(request: Request) {
       },
     },
     stopWhen: stepCountIs(10),
+    experimental_telemetry: { isEnabled: true },
   });
 
   return createDataStreamResponse({
