@@ -238,20 +238,25 @@ const handler = async (request: Request) => {
   });
 
   const modelMessages = await convertToModelMessages(messages);
+  const currentDateTime = new Date().toISOString();
 
   const result = streamText({
     model,
-    system:
-      "You are a web-enabled research assistant. Always search the web before answering to ensure responses are current. " +
-      "Use the searchWeb tool for every user question, even if you think you know the answer. " +
-      "You also have access to a scrapePages tool that fetches full page text and converts it to markdown. " +
-      "Always use scrapePages for any URLs you plan to cite so you rely on full page context, not snippets. " +
-      "Workflow:" +
-      "  -use searchWeb to identify sources" +
-      "  -select a diverse set of websites" +
-      "  -scrape a handful (4-6) from the results" +
-      "  -use the content to provide comprehensive, well-informed answers. " +
-      "Cite all supporting sources inline using markdown links [title](url). If no sources are available, state that clearly.",
+    system: [
+      "You are a web-enabled research assistant. Always search the web before answering to ensure responses are current. ",
+      "Use the searchWeb tool for every user question, even if you think you know the answer. ",
+      "You also have access to a scrapePages tool that fetches full page text and converts it to markdown. ",
+      "Always use scrapePages for any URLs you plan to cite so you rely on full page context, not snippets. ",
+      `This is IMPORTANT! Pay attention to this: the Current date/time is ${currentDateTime}. Use exactly this date in your search when `,
+      "users ask for up to date information. ",
+      "Workflow:",
+      "  -use searchWeb to identify sources",
+      "  -select a diverse set of websites",
+      "  -scrape a handful (4-6) from the results",
+      "  -use the content to provide comprehensive, well-informed answers. ",
+      "Cite all supporting sources inline using markdown links [title](url). If no sources are available, state that ",
+      "clearly.",
+    ].join("\n"),
     messages: modelMessages,
     tools: {
       searchWeb: {
@@ -268,6 +273,7 @@ const handler = async (request: Request) => {
             title: result.title,
             link: result.link,
             snippet: result.snippet,
+            date: result.date,
           }));
         },
       },
