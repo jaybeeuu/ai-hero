@@ -2,11 +2,13 @@ import * as cheerio from "cheerio";
 import { setTimeout } from "node:timers/promises";
 import robotsParser from "robots-parser";
 import TurndownService from "turndown";
+import { env } from "~/env";
 import { cacheWithRedis } from "~/server/redis/redis";
 
 export const DEFAULT_MAX_RETRIES = 3;
 const MIN_DELAY_MS = 500; // 0.5 seconds
 const MAX_DELAY_MS = 8000; // 8 seconds
+const JINA_READER_URL = "https://r.jina.ai/";
 
 export interface ScrapeSuccessResponse {
   success: true;
@@ -49,6 +51,13 @@ export interface BulkScrapeOptions extends ScrapeOptions {
   urls: string[];
 }
 
+type JinaReaderResponse = {
+  code: number;
+  status: number;
+  data: string;
+  meta?: unknown;
+};
+
 const turndownService = new TurndownService({
   headingStyle: "atx",
   codeBlockStyle: "fenced",
@@ -85,6 +94,43 @@ const extractArticleText = (html: string): string => {
   return content.trim();
 };
 
+const getRetryDelay = (attempt: number): number => {
+  const baseDelay = MIN_DELAY_MS * Math.pow(2, attempt);
+  const jitter = 0.8 + Math.random() * 0.4;
+  return Math.min(baseDelay * jitter, MAX_DELAY_MS);
+};
+
+const isRetryableStatus = (status: number): boolean => {
+  return status >= 500 || status === 408 || status === 425 || status === 429;
+};
+
+const extractJinaContent = (payload: unknown): string | null => {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const data = (payload as { data?: unknown }).data;
+
+  if (typeof data === "string") {
+    return data;
+  }
+
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const candidates = ["content", "markdown", "text", "html"] as const;
+
+  for (const key of candidates) {
+    const value = (data as Record<string, unknown>)[key];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+
+  return null;
+};
+
 const checkRobotsTxt = async (url: string): Promise<boolean> => {
   try {
     const parsedUrl = new URL(url);
@@ -112,7 +158,7 @@ export const bulkScrapeWebsites = async (
   const results = await Promise.all(
     urls.map(async (url) => ({
       url,
-      result: await scrapeWebsite({ url, maxRetries }),
+      result: await scrapeWebsiteWithFallback({ url, maxRetries }),
     })),
   );
 
@@ -136,8 +182,6 @@ export const bulkScrapeWebsites = async (
     success: true,
   } as BulkScrapeResponse;
 };
-
-export const scrapeMultipleUrls = bulkScrapeWebsites;
 
 export const scrapeWebsite = cacheWithRedis(
   "scrapeWebsite",
@@ -202,3 +246,128 @@ export const scrapeWebsite = cacheWithRedis(
     };
   },
 );
+
+const scrapeWebsiteWithJina = async (
+  options: ScrapeOptions & { url: string },
+): Promise<ScrapeResponse> => {
+  const { url, maxRetries = DEFAULT_MAX_RETRIES } = options;
+
+  if (!env.JINA_API_KEY) {
+    return {
+      success: false,
+      error: "JINA_API_KEY is not set",
+    };
+  }
+
+  let attempts = 0;
+
+  while (attempts < maxRetries) {
+    try {
+      const response = await fetch(JINA_READER_URL, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${env.JINA_API_KEY}`,
+          "Content-Type": "application/json",
+          "X-Respond-With": "markdown",
+          "X-Robots-Txt": "LinkedInBot",
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      if (response.ok) {
+        const contentType = response.headers.get("content-type") ?? "";
+
+        if (!contentType.includes("application/json")) {
+          const text = await response.text();
+          if (text.trim().length > 0) {
+            return {
+              success: true,
+              data: text.trim(),
+            };
+          }
+
+          return {
+            success: false,
+            error: "Jina reader response missing data",
+          };
+        }
+
+        const json = (await response.json()) as JinaReaderResponse;
+        const extracted = extractJinaContent(json);
+
+        if (!extracted) {
+          return {
+            success: false,
+            error: "Jina reader response missing data",
+          };
+        }
+
+        return {
+          success: true,
+          data: extracted.trim(),
+        };
+      }
+
+      const status = response.status;
+      const responseText = await response.text();
+      const retryable = isRetryableStatus(status);
+
+      attempts++;
+
+      if (!retryable) {
+        return {
+          success: false,
+          error: `Jina reader failed: ${status} ${response.statusText} ${responseText}`.trim(),
+        };
+      }
+
+      if (attempts >= maxRetries) {
+        return {
+          success: false,
+          error: `Jina reader failed after ${maxRetries} attempts: ${status} ${response.statusText}`,
+        };
+      }
+
+      await setTimeout(getRetryDelay(attempts));
+    } catch (error) {
+      attempts++;
+
+      if (attempts >= maxRetries) {
+        return {
+          success: false,
+          error: `Jina reader network error after ${maxRetries} attempts: ${error instanceof Error ? error.message : "Unknown error"}`,
+        };
+      }
+
+      await setTimeout(getRetryDelay(attempts));
+    }
+  }
+
+  return {
+    success: false,
+    error: "Maximum retry attempts reached",
+  };
+};
+
+const scrapeWebsiteWithFallback = async (
+  options: ScrapeOptions & { url: string },
+): Promise<ScrapeResponse> => {
+  const { url, maxRetries = DEFAULT_MAX_RETRIES } = options;
+
+  if (env.JINA_API_KEY) {
+    const jinaResult = await scrapeWebsiteWithJina({ url, maxRetries });
+    if (jinaResult.success) {
+      return jinaResult;
+    }
+
+    console.warn("Jina reader failed, falling back to homegrown scraper.", {
+      url,
+      error: jinaResult.error,
+    });
+  }
+
+  return scrapeWebsite({ url, maxRetries });
+};
+
+export const scrapeMultipleUrls = bulkScrapeWebsites;
