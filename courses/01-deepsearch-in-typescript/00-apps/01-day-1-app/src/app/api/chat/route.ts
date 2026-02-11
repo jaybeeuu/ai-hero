@@ -1,12 +1,9 @@
 import {
-  stepCountIs,
-  streamText,
   convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
 } from "ai";
 import type { UIMessage } from "ai";
-import { z } from "zod";
 import { after } from "next/server";
 import {
   observe,
@@ -14,25 +11,18 @@ import {
   updateActiveTrace,
 } from "@langfuse/tracing";
 import { trace } from "@opentelemetry/api";
-import { searchSerper } from "~/serper";
 import { auth } from "~/server/auth";
-import { model } from "~/model";
 import { db } from "~/server/db";
 import { requests, users } from "~/server/db/schema";
 import { upsertChat } from "~/server/chat-queries";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { langfuseSpanProcessor } from "~/instrumentation";
-import { cacheWithRedis } from "~/server/redis/redis";
-import { scrapeMultipleUrls } from "~/scraper";
+import { streamFromDeepSearch } from "~/deep-search";
 
 export const maxDuration = 60;
 
 const REQUESTS_PER_DAY = 10;
 const ADMIN_REQUESTS_PER_DAY = Infinity;
-
-const scrapePages = cacheWithRedis("scrapePages", async (urls: string[]) => {
-  return scrapeMultipleUrls({ urls });
-});
 
 const checkHasUserExceededRate = async (userId: string) => {
   const user = await db.query.users.findFirst({
@@ -238,56 +228,9 @@ const handler = async (request: Request) => {
   });
 
   const modelMessages = await convertToModelMessages(messages);
-  const currentDateTime = new Date().toISOString();
-
-  const result = streamText({
-    model,
-    system: [
-      "You are a web-enabled research assistant. Always search the web before answering to ensure responses are current. ",
-      "Use the searchWeb tool for every user question, even if you think you know the answer. ",
-      "You also have access to a scrapePages tool that fetches full page text and converts it to markdown. ",
-      "Always use scrapePages for any URLs you plan to cite so you rely on full page context, not snippets. ",
-      `This is IMPORTANT! Pay attention to this: the Current date/time is ${currentDateTime}. Use exactly this date in your search when `,
-      "users ask for up to date information. ",
-      "Workflow:",
-      "  -use searchWeb to identify sources",
-      "  -select a diverse set of websites",
-      "  -scrape a handful (4-6) from the results",
-      "  -use the content to provide comprehensive, well-informed answers. ",
-      "Cite all supporting sources inline using markdown links [title](url). If no sources are available, state that ",
-      "clearly.",
-    ].join("\n"),
+  const result = streamFromDeepSearch({
     messages: modelMessages,
-    tools: {
-      searchWeb: {
-        inputSchema: z.object({
-          query: z.string().describe("The query to search the web for"),
-        }),
-        execute: async ({ query }, { abortSignal }) => {
-          const results = await searchSerper(
-            { q: query, num: 10 },
-            abortSignal,
-          );
-
-          return results.organic.map((result) => ({
-            title: result.title,
-            link: result.link,
-            snippet: result.snippet,
-            date: result.date,
-          }));
-        },
-      },
-      scrapePages: {
-        inputSchema: z.object({
-          urls: z.array(z.string().url()).describe("List of URLs to scrape"),
-        }),
-        execute: async ({ urls }) => {
-          return scrapePages(urls);
-        },
-      },
-    },
-    stopWhen: stepCountIs(10),
-    experimental_telemetry: {
+    telemetry: {
       isEnabled: true,
       functionId: "agent",
     },
