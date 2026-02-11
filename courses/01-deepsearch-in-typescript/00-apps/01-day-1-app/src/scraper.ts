@@ -318,7 +318,8 @@ const scrapeWebsiteWithJina = async (
       if (!retryable) {
         return {
           success: false,
-          error: `Jina reader failed: ${status} ${response.statusText} ${responseText}`.trim(),
+          error:
+            `Jina reader failed: ${status} ${response.statusText} ${responseText}`.trim(),
         };
       }
 
