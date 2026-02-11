@@ -3,7 +3,11 @@ import {
   createUIMessageStream,
   createUIMessageStreamResponse,
 } from "ai";
-import type { UIMessage } from "ai";
+import type {
+  StreamTextOnErrorCallback,
+  StreamTextOnFinishCallback,
+  UIMessage,
+} from "ai";
 import { after } from "next/server";
 import {
   observe,
@@ -18,11 +22,22 @@ import { upsertChat } from "~/server/chat-queries";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { langfuseSpanProcessor } from "~/instrumentation";
 import { streamFromDeepSearch } from "~/deep-search";
+import {
+  checkRateLimit,
+  recordRateLimit,
+  type RateLimitConfig,
+} from "~/server/redis/rate-limit";
 
 export const maxDuration = 60;
 
 const REQUESTS_PER_DAY = 10;
 const ADMIN_REQUESTS_PER_DAY = Infinity;
+const GLOBAL_RATE_LIMIT_CONFIG: RateLimitConfig = {
+  maxRequests: 1,
+  maxRetries: 3,
+  windowMs: 5_000,
+  keyPrefix: "global",
+};
 
 const checkHasUserExceededRate = async (userId: string) => {
   const user = await db.query.users.findFirst({
@@ -228,13 +243,25 @@ const handler = async (request: Request) => {
   });
 
   const modelMessages = await convertToModelMessages(messages);
+  const rateLimitCheck = await checkRateLimit(GLOBAL_RATE_LIMIT_CONFIG);
+
+  if (!rateLimitCheck.allowed) {
+    const isAllowed = await rateLimitCheck.retry();
+    if (!isAllowed) {
+      return new Response("Rate limit exceeded", { status: 429 });
+    }
+  }
+
+  await recordRateLimit(GLOBAL_RATE_LIMIT_CONFIG);
   const result = streamFromDeepSearch({
     messages: modelMessages,
     telemetry: {
       isEnabled: true,
       functionId: "agent",
     },
-    onFinish: async (result) => {
+    onFinish: async (
+      result: Parameters<StreamTextOnFinishCallback<any>>[0],
+    ) => {
       updateActiveObservation({
         output: result.text,
       });
@@ -243,7 +270,7 @@ const handler = async (request: Request) => {
       });
       trace.getActiveSpan()?.end();
     },
-    onError: async (error) => {
+    onError: async (error: Parameters<StreamTextOnErrorCallback>[0]) => {
       updateActiveObservation({
         output: String(error),
         level: "ERROR",

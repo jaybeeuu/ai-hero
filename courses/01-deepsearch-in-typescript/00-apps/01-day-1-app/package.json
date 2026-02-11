@@ -26,6 +26,7 @@
     "@auth/drizzle-adapter": "^1.7.2",
     "@langfuse/otel": "^4.5.1",
     "@langfuse/tracing": "^4.5.1",
+    "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/api-logs": "^0.211.0",
     "@opentelemetry/instrumentation": "^0.211.0",
     "@opentelemetry/sdk-logs": "^0.211.0",
