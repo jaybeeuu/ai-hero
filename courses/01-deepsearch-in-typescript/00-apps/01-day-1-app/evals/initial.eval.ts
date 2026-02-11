@@ -21,6 +21,46 @@ evalite("Deep Search Eval", {
           },
         ],
       },
+      {
+        input: [
+          {
+            role: "user",
+            content: "What is the latest stable release of Node.js?",
+          },
+        ],
+      },
+      {
+        input: [
+          {
+            role: "user",
+            content: "Summarize the key changes in React 19.",
+          },
+        ],
+      },
+      {
+        input: [
+          {
+            role: "user",
+            content: "What are the main features of PostgreSQL 16?",
+          },
+        ],
+      },
+      {
+        input: [
+          {
+            role: "user",
+            content: "What is the current version of Vite?",
+          },
+        ],
+      },
+      {
+        input: [
+          {
+            role: "user",
+            content: "What is the current version of Tailwind CSS?",
+          },
+        ],
+      },
     ];
   },
   task: async (input) => {
