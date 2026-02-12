@@ -19,6 +19,7 @@ export const env = createEnv({
     LANGFUSE_SECRET_KEY: z.string(),
     LANGFUSE_PUBLIC_KEY: z.string(),
     LANGFUSE_BASE_URL: z.string().url(),
+    EVAL_DATASET: z.enum(["dev", "ci", "regression"]).default("dev"),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -45,6 +46,7 @@ export const env = createEnv({
     LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
     LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
     LANGFUSE_BASE_URL: process.env.LANGFUSE_BASE_URL,
+    EVAL_DATASET: process.env.EVAL_DATASET,
     NODE_ENV: process.env.NODE_ENV,
   },
   /**
