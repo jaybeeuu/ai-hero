@@ -7,6 +7,7 @@ import { env } from "~/env";
 import { devData } from "./dev";
 import { ciData } from "./ci";
 import { regressionData } from "./regression";
+import { AnswerRelevancy } from "./answer-relevancy";
 
 const checkFactuality = async (opts: {
   question: string;
@@ -105,6 +106,7 @@ evalite("Deep Search Eval", {
       },
     },
     Factuality,
+    AnswerRelevancy,
   ],
   columns: async ({ input, expected }) => {
     return [
