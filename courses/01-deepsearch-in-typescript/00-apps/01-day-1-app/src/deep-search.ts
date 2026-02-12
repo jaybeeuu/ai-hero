@@ -11,6 +11,7 @@ import { model } from "~/model";
 import { searchSerper } from "~/serper";
 import { cacheWithRedis } from "~/server/redis/redis";
 import { scrapeMultipleUrls } from "~/scraper";
+import { env } from "~/env";
 
 const scrapePages = cacheWithRedis("scrapePages", async (urls: string[]) => {
   return scrapeMultipleUrls({ urls });
@@ -55,7 +56,7 @@ export const streamFromDeepSearch = (opts: {
         }),
         execute: async ({ query }, { abortSignal }) => {
           const results = await searchSerper(
-            { q: query, num: 10 },
+            { q: query, num: env.SEARCH_RESULTS_COUNT },
             abortSignal,
           );
 
