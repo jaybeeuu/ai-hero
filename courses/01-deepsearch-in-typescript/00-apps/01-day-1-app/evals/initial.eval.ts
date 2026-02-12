@@ -12,7 +12,11 @@ const checkFactuality = async (opts: {
   const { object } = await generateObject({
     model: factualityModel,
     prompt: `
-You are comparing a submitted answer to an expert answer on a given question. Here is the data:
+You are comparing a submitted answer to an expert answer on a given question.
+Use only the data you are presented with when making your comparison. Do not rely on assumed knowledge.
+For reference the current date is ${new Date().toISOString().split("T")[0]}.
+
+Here is the data:
 [BEGIN DATA]
 ************
 [Question]: ${opts.question}
@@ -69,7 +73,8 @@ evalite("Deep Search Eval", {
     return [
       {
         input: "What is the latest version of TypeScript?",
-        expected: "The current TypeScript version is 5.8.",
+        expected:
+          "The current TypeScript version is 5.9.3, released 2025-10-01.",
       },
       {
         input: "What are the main features of Next.js 15?",
