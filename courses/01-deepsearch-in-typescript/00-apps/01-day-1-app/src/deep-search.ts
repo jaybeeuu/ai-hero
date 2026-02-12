@@ -35,7 +35,9 @@ const getBaseSystemPrompt = () => {
 };
 
 const buildSystemPrompt = (currentDateTime: string) =>
-  getBaseSystemPrompt().replace("{{CURRENT_DATETIME}}", currentDateTime);
+  getBaseSystemPrompt()
+    .replace("{{CURRENT_DATETIME}}", currentDateTime)
+    .replace("{{SCRAPE_RESULTS_COUNT}}", String(env.SEARCH_SCRAPE_COUNT));
 
 export const streamFromDeepSearch = (opts: {
   messages: ModelMessage[];
@@ -73,7 +75,7 @@ export const streamFromDeepSearch = (opts: {
           urls: z.array(z.string().url()).describe("List of URLs to scrape"),
         }),
         execute: async ({ urls }) => {
-          return scrapePages(urls);
+          return scrapePages(urls.slice(0, env.SEARCH_SCRAPE_COUNT));
         },
       },
     },
