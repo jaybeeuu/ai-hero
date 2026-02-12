@@ -4,6 +4,8 @@ import {
   type ModelMessage,
   type TelemetrySettings,
 } from "ai";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { z } from "zod";
 import { model } from "~/model";
 import { searchSerper } from "~/serper";
@@ -14,22 +16,25 @@ const scrapePages = cacheWithRedis("scrapePages", async (urls: string[]) => {
   return scrapeMultipleUrls({ urls });
 });
 
+const SYSTEM_PROMPT_PATH = path.join(
+  process.cwd(),
+  "src",
+  "prompts",
+  "deep-search.md",
+);
+
+let baseSystemPrompt: string | null = null;
+
+const getBaseSystemPrompt = () => {
+  if (!baseSystemPrompt) {
+    baseSystemPrompt = readFileSync(SYSTEM_PROMPT_PATH, "utf8");
+  }
+
+  return baseSystemPrompt;
+};
+
 const buildSystemPrompt = (currentDateTime: string) =>
-  [
-    "You are a web-enabled research assistant. Always search the web before answering to ensure responses are current. ",
-    "Use the searchWeb tool for every user question, even if you think you know the answer. ",
-    "You also have access to a scrapePages tool that fetches full page text and converts it to markdown. ",
-    "Always use scrapePages for any URLs you plan to cite so you rely on full page context, not snippets. ",
-    `This is IMPORTANT! Pay attention to this: the Current date/time is ${currentDateTime}. Use exactly this date in your search when `,
-    "users ask for up to date information. ",
-    "Workflow:",
-    "  -use searchWeb to identify sources",
-    "  -select a diverse set of websites",
-    "  -scrape a handful (4-6) from the results",
-    "  -use the content to provide comprehensive, well-informed answers. ",
-    "Cite all supporting sources inline using markdown links [title](url). If no sources are available, state that ",
-    "clearly.",
-  ].join("\n");
+  getBaseSystemPrompt().replace("{{CURRENT_DATETIME}}", currentDateTime);
 
 export const streamFromDeepSearch = (opts: {
   messages: ModelMessage[];
